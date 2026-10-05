@@ -1,0 +1,24 @@
+{
+  "title": "LinkedIn To Email",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "fileName": {
+      "title": "File Name / Tag",
+      "type": "string",
+      "description": "A label for this run.",
+      "editor": "textfield",
+      "default": "LTE_Run"
+    },
+    "profiles": {
+      "title": "LinkedIn URLs",
+      "type": "array",
+      "description": "LinkedIn profile URLs to find emails for.",
+      "editor": "stringList",
+      "prefill": [
+        "https://www.linkedin.com/in/williamhgates"
+      ]
+    }
+  },
+  "required": ["fileName", "profiles"]
+}
