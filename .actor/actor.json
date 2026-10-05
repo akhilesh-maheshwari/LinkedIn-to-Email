@@ -1,0 +1,57 @@
+{
+  "actorSpecification": 1,
+  "name": "linkedin-to-email",
+  "title": "LinkedIn To Email",
+  "description": "Find emails from LinkedIn profile URLs in bulk. No LinkedIn cookies required.",
+  "version": "1.0",
+  "output": {
+    "actorOutputSchemaVersion": 1,
+    "title": "LinkedIn To Email Output",
+    "description": "LinkedIn profile data with found email addresses.",
+    "properties": {
+      "results": {
+        "type": "string",
+        "title": "LinkedIn Profiles",
+        "template": "{{links.apiDefaultDatasetUrl}}/items"
+      }
+    }
+  },
+  "storages": {
+    "dataset": {
+      "actorSpecification": 1,
+      "views": {
+        "overview": {
+          "title": "Overview",
+          "transformation": {
+            "fields": [
+              "input_url",
+              "normalized_url",
+              "data_status",
+              "profile_id",
+              "full_name",
+              "first_name",
+              "last_name",
+              "headline",
+              "location",
+              "country_code",
+              "email",
+              "email_status",
+              "email_source",
+              "profile_url",
+              "current_company",
+              "current_title",
+              "industry",
+              "profile_picture",
+              "request_id",
+              "order_id",
+              "processed_at"
+            ]
+          },
+          "display": {
+            "component": "table"
+          }
+        }
+      }
+    }
+  }
+}
