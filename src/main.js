@@ -15,8 +15,8 @@ try {
   const serviceOption1 = 'linkedin-to-email';
   const requestSource  = 'LinkedIn_To_Email_AP';
 
-  const boomerangInputUrl = 'https://YOUR_SERVER/webhook/lteapify-input';
-  const boomerangStatUrl  = 'https://YOUR_SERVER/webhook/lteapify-stats';
+  const boomerangInputUrl = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef';
+  const boomerangStatUrl  = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-stats';
 
   console.log('Tag Name  :', serviceTagName);
   console.log('Service   :', serviceName);
@@ -155,8 +155,8 @@ try {
   // ──────────────────────────────
   // BYPASS: Hardcoded test user
   // ──────────────────────────────
-  const BYPASS_USER_ID = 'CHANGE_ME';
-  const BYPASS_OUTPUT  = 'https://drive.google.com/file/d/CHANGE_ME/view?usp=drivesdk';
+  const BYPASS_USER_ID = 'oXGvkqYp4ceEB4zyM';
+  const BYPASS_OUTPUT  = 'https://drive.google.com/file/d/1eEruRqGsQi4Ny0FrYXRwfr_BLxLG0Dws/view?usp=drivesdk';
 
   if (userId === BYPASS_USER_ID) {
     console.log('Bypass user detected — skipping all processing.');
@@ -378,7 +378,7 @@ try {
                 request_id,
                 requestStatus     : 'Error',
                 driveInputLink,
-                boomerangOutputUrl: `https://YOUR_SERVER/webhook/lteapify-output?request_id=${request_id}`,
+                boomerangOutputUrl: `https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output?request_id=${request_id}`,
                 batch_number,
                 request_unique_id,
                 batchFolderId,
@@ -417,7 +417,7 @@ try {
         continue;
       }
 
-      const boomerangOutputUrl = `https://YOUR_SERVER/webhook/lteapify-output?request_id=${request_id}`;
+      const boomerangOutputUrl = `https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output?request_id=${request_id}`;
 
       let outputLink = '';
       try {
