@@ -11,7 +11,7 @@ try {
   const serviceTagName = input.fileName || 'LTE_Run';
   const rawProfiles    = Array.isArray(input.profiles) ? input.profiles : [];
 
-  const serviceName    = 'LinkedIn To Email';
+  const serviceName    = 'LinkedIn To Email Scraper';
   const serviceOption1 = 'linkedin-to-email';
   const requestSource  = 'LinkedIn_To_Email_AP';
 
