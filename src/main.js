@@ -422,7 +422,7 @@ try {
         continue;
       }
 
-      const boomerangOutputUrl = `${boomerangOutputBase}?request_id=${request_id}&format=csv`;
+      const boomerangOutputUrl = `https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output?request_id=${request_id}`;
 
       // Notify the output webhook (fire-and-forget style, same as before)
       try {
