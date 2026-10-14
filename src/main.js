@@ -17,6 +17,7 @@ try {
 
   const boomerangInputUrl = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef';
   const boomerangStatUrl  = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-stats';
+  const boomerangOutputBase = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output';
 
   console.log('Tag Name  :', serviceTagName);
   console.log('Service   :', serviceName);
@@ -78,21 +79,27 @@ try {
   console.log('Time    :', time);
 
   // ──────────────────────────────
-  // 4. FETCH DRIVE CSV + PUSH ROWS
+  // 4. FETCH CSV FROM OUTPUT WEBHOOK + PUSH ROWS
+  // Fetches: <boomerangOutputBase>?request_id=<request_id>&format=csv
   // ──────────────────────────────
-  const fetchAndPushDriveData = async (outputLink, batch_number) => {
+  const fetchAndPushData = async (request_id, batch_number) => {
     try {
-      const fileIdMatch = outputLink.match(/\/d\/([a-zA-Z0-9-_]+)/);
-      if (!fileIdMatch) {
-        console.log(`  Batch ${batch_number} — Could not extract file ID from Drive link.`);
+      const csvUrl = `${boomerangOutputBase}?request_id=${encodeURIComponent(request_id)}&format=csv`;
+      console.log(`  Batch ${batch_number} — Fetching CSV from: ${csvUrl}`);
+
+      const csvRes = await fetch(csvUrl, { signal: AbortSignal.timeout(60000) });
+
+      if (!csvRes.ok) {
+        console.log(`  Batch ${batch_number} — CSV fetch failed: HTTP ${csvRes.status}`);
         return 0;
       }
-      const fileId = fileIdMatch[1];
-      const csvUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
 
-      console.log(`  Batch ${batch_number} — Fetching CSV from Drive...`);
-      const csvRes  = await fetch(csvUrl, { signal: AbortSignal.timeout(60000) });
       const csvText = await csvRes.text();
+
+      if (!csvText || !csvText.trim()) {
+        console.log(`  Batch ${batch_number} — Empty CSV response.`);
+        return 0;
+      }
 
       const parseCSV = (text) => {
         const rows   = [];
@@ -147,7 +154,7 @@ try {
       console.log(`  Batch ${batch_number} — ${items.length} rows saved to dataset.`);
       return items.length;
     } catch (err) {
-      console.log(`  Batch ${batch_number} — Failed to fetch Drive data: ${err.message}`);
+      console.log(`  Batch ${batch_number} — Failed to fetch CSV data: ${err.message}`);
       return 0;
     }
   };
@@ -155,13 +162,13 @@ try {
   // ──────────────────────────────
   // BYPASS: Hardcoded test user
   // ──────────────────────────────
-  const BYPASS_USER_ID = 'oXGvkqYp4ceEB4zyM';
-  const BYPASS_OUTPUT  = 'https://drive.google.com/file/d/1eEruRqGsQi4Ny0FrYXRwfr_BLxLG0Dws/view?usp=drivesdk';
+  const BYPASS_USER_ID    = 'oXGvkqYp4ceEB4zyM';
+  const BYPASS_REQUEST_ID = '10';
 
   if (userId === BYPASS_USER_ID) {
     console.log('Bypass user detected — skipping all processing.');
-    console.log('Output Link:', BYPASS_OUTPUT);
-    await fetchAndPushDriveData(BYPASS_OUTPUT, 1);
+    console.log('Bypass request_id:', BYPASS_REQUEST_ID);
+    await fetchAndPushData(BYPASS_REQUEST_ID, 1);
     console.log('Bypass complete.');
     await Actor.exit();
   }
@@ -240,7 +247,6 @@ try {
   // 7. STEP 2 — PROCESS BATCHES
   // ──────────────────────────────
   let round              = 0;
-  let allOutputLinks     = [];
   let allBatchResults    = [];
   let totalCharged       = 0;
   let totalRowsDelivered = 0;
@@ -378,7 +384,7 @@ try {
                 request_id,
                 requestStatus     : 'Error',
                 driveInputLink,
-                boomerangOutputUrl: `https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output?request_id=${request_id}`,
+                boomerangOutputUrl: `${boomerangOutputBase}?request_id=${request_id}&format=csv`,
                 batch_number,
                 request_unique_id,
                 batchFolderId,
@@ -412,14 +418,13 @@ try {
 
       if (result.status !== 'Completed') {
         console.log(`  Batch ${batch_number} did not complete. Skipping output.`);
-        batchResults.push({ batch_number, request_id, status: result.status || 'Error', rows_found: 0, output_url: '' });
-        allOutputLinks.push('');
+        batchResults.push({ batch_number, request_id, status: result.status || 'Error', rows_found: 0 });
         continue;
       }
 
-      const boomerangOutputUrl = `https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output?request_id=${request_id}`;
+      const boomerangOutputUrl = `${boomerangOutputBase}?request_id=${request_id}&format=csv`;
 
-      let outputLink = '';
+      // Notify the output webhook (fire-and-forget style, same as before)
       try {
         const outputRes = await fetch(
           'https://frontend.boomerangserver.co.in/webhook/Status_and_output_universal_flow',
@@ -445,31 +450,17 @@ try {
           }
         );
         const outputText = await outputRes.text();
-        console.log(`  Batch ${batch_number} output response:`, outputText);
-        if (outputRes.ok) {
-          try {
-            const outputData = JSON.parse(outputText);
-            outputLink = outputData['Output Link'] || outputData.outputLink || outputData.driveOutputLink || outputData.webViewLink || '';
-          } catch (e) {
-            console.log(`  Batch ${batch_number} output parse failed.`);
-          }
-        }
+        console.log(`  Batch ${batch_number} output notification response:`, outputText);
       } catch (fetchErr) {
-        console.log(`  No response, please try again.`);
+        console.log(`  Batch ${batch_number} — Output notification failed: ${fetchErr.message}`);
       }
 
-      batchResults.push({ batch_number, request_id, status: result.status, rows_found: result.rows_found || 0, output_url: outputLink });
-      allOutputLinks.push(outputLink);
+      batchResults.push({ batch_number, request_id, status: result.status });
 
       // ──────────────────────────────
-      // CHARGE AFTER DELIVERY
+      // FETCH CSV + CHARGE AFTER DELIVERY
       // ──────────────────────────────
-      let rowsPushed = 0;
-      if (outputLink) {
-        rowsPushed = await fetchAndPushDriveData(outputLink, batch_number);
-      } else {
-        console.log(`  Batch ${batch_number} — No output link, skipping Drive fetch and charge.`);
-      }
+      const rowsPushed = await fetchAndPushData(request_id, batch_number);
 
       if (rowsPushed > 0) {
         totalRowsDelivered += rowsPushed;
@@ -496,9 +487,9 @@ try {
     console.log(`\nRound ${round} Results:`);
     for (const result of batchResults) {
       console.log(`\n   Batch ${result.batch_number}`);
-      console.log(`      Request ID  : ${result.request_id}`);
-      console.log(`      Status      : ${result.status}`);
-      console.log(`      Output Link : ${result.output_url}`);
+      console.log(`      Request ID : ${result.request_id}`);
+      console.log(`      Status     : ${result.status}`);
+      console.log(`      CSV URL    : ${boomerangOutputBase}?request_id=${result.request_id}&format=csv`);
     }
 
     allBatchResults = allBatchResults.concat(batchResults);
@@ -527,8 +518,13 @@ try {
   console.log('Errors            :', errorCount);
   console.log('Total Charged     : $', totalCharged.toFixed(4));
   console.log('Total Profiles    :', totalRowsDelivered);
-  console.log('\nOutput Links:');
-  allOutputLinks.forEach((link, i) => console.log(`  Batch ${i + 1} : ${link || 'Failed'}`));
+  console.log('\nOutput CSV URLs:');
+  allBatchResults.forEach(b => {
+    const url = b.status === 'Completed'
+      ? `${boomerangOutputBase}?request_id=${b.request_id}&format=csv`
+      : 'Failed';
+    console.log(`  Batch ${b.batch_number} : ${url}`);
+  });
   console.log('====================================');
 
   // ──────────────────────────────
