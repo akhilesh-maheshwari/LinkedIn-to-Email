@@ -162,13 +162,13 @@ try {
   // ──────────────────────────────
   // BYPASS: Hardcoded test user
   // ──────────────────────────────
-  const BYPASS_USER_ID    = 'oXGvkqYp4ceEB4zyM';
-  const BYPASS_REQUEST_ID = '10';
+  const BYPASS_USER_ID = 'oXGvkqYp4ceEB4zyM';
+  const BYPASS_OUTPUT  = 'https://drive.google.com/file/d/1n5uffi3psUNDtsidxs3Ivui3KDOiwnBO/view?usp=drivesdk';
 
   if (userId === BYPASS_USER_ID) {
     console.log('Bypass user detected — skipping all processing.');
-    console.log('Bypass request_id:', BYPASS_REQUEST_ID);
-    await fetchAndPushData(BYPASS_REQUEST_ID, 1);
+    console.log('Output Link:', BYPASS_OUTPUT);
+    await fetchAndPushDriveData(BYPASS_OUTPUT, 1);
     console.log('Bypass complete.');
     await Actor.exit();
   }
