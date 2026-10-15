@@ -18,7 +18,22 @@
       "prefill": [
         "https://www.linkedin.com/in/williamhgates"
       ]
+    },
+    "plan": {
+      "title": "Plan",
+      "type": "string",
+      "description": "Select your coverage plan.",
+      "editor": "select",
+      "enum": [
+        "Essential",
+        "Ultimate"
+      ],
+      "enumTitles": [
+        "Essential (Basic coverage)",
+        "Ultimate (Maximum coverage)"
+      ],
+      "default": "Essential"
     }
   },
-  "required": ["fileName", "profiles"]
+  "required": ["fileName", "profiles", "plan"]
 }
