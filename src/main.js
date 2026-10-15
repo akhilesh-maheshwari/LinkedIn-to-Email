@@ -313,7 +313,7 @@ try {
   let batchJobs = await getNextBatchJobs();
 
   let retryCount    = 0;
-  const MAX_RETRIES = 23;
+  const MAX_RETRIES = 73;
 
   while (!batchJobs || batchJobs.length === 0) {
     retryCount++;
