@@ -10,17 +10,36 @@ try {
   const input          = await Actor.getInput();
   const serviceTagName = input.fileName || 'LTE_Run';
   const rawProfiles    = Array.isArray(input.profiles) ? input.profiles : [];
+  const plan           = input.plan || 'Essential';
 
   const serviceName    = 'LinkedIn To Email Scraper';
-  const serviceOption1 = 'linkedin-to-email';
   const requestSource  = 'LinkedIn_To_Email_AP';
 
-  const boomerangInputUrl = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef';
-  const boomerangStatUrl  = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-stats';
+  // ── Plan-based config ──
+  const PLAN_CONFIG = {
+    Essential: {
+      serviceOption1 : 'linkedin-to-email-essential',
+      pricePerProfile: 0.010,   // $10 per 1000
+    },
+    Ultimate: {
+      serviceOption1 : 'linkedin-to-email-ultimate',
+      pricePerProfile: 0.025,   // $25 per 1000
+    }
+  };
+
+  const planConfig     = PLAN_CONFIG[plan] || PLAN_CONFIG['Essential'];
+  const serviceOption1 = planConfig.serviceOption1;
+  const pricePerProfile= planConfig.pricePerProfile;
+
+  const boomerangInputUrl   = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef';
+  const boomerangStatUrl    = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-stats';
   const boomerangOutputBase = 'https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output';
 
   console.log('Tag Name  :', serviceTagName);
   console.log('Service   :', serviceName);
+  console.log('Plan      :', plan);
+  console.log('Option    :', serviceOption1);
+  console.log('Price/Profile: $', pricePerProfile);
   console.log('Profiles  :', rawProfiles.length);
 
   if (!serviceTagName.trim()) throw new Error('fileName is required!');
@@ -80,7 +99,6 @@ try {
 
   // ──────────────────────────────
   // 4. FETCH CSV FROM OUTPUT WEBHOOK + PUSH ROWS
-  // Fetches: <boomerangOutputBase>?request_id=<request_id>&format=csv
   // ──────────────────────────────
   const fetchAndPushData = async (request_id, batch_number) => {
     try {
@@ -176,8 +194,9 @@ try {
   // ──────────────────────────────
   // 5. CALCULATE COST
   // ──────────────────────────────
-  const creditsCost = parseFloat((rowCount * 0.019).toFixed(4));
+  const creditsCost = parseFloat((rowCount * pricePerProfile).toFixed(4));
   console.log('Profile count :', rowCount);
+  console.log('Plan          :', plan);
   console.log('Credits cost  : $', creditsCost);
 
   // ──────────────────────────────
@@ -209,6 +228,7 @@ try {
           service_option_1 : serviceOption1,
           service_name     : serviceName,
           request_source   : requestSource,
+          plan,
           linkedinUrl      : '',
           linkedinUrls     : validProfiles
         })
@@ -272,6 +292,7 @@ try {
             service_option_1 : serviceOption1,
             service_name     : serviceName,
             request_source   : requestSource,
+            plan,
             linkedinUrl      : '',
             linkedinUrls     : validProfiles
           })
@@ -340,7 +361,9 @@ try {
                   time,
                   serviceTagName,
                   rowCount   : job.batch_size || rowCount,
-                  creditsCost
+                  creditsCost,
+                  plan,
+                  service_option_1 : serviceOption1
                 })
               }
             );
@@ -391,6 +414,7 @@ try {
                 service_option_1  : serviceOption1,
                 service_name      : serviceName,
                 request_source    : requestSource,
+                plan,
                 reason            : `Timed out after ${maxAttempts} attempts`
               })
             }
@@ -424,7 +448,6 @@ try {
 
       const boomerangOutputUrl = `https://linkedinprofilescraper-n8n.boomerangserver.co.in/webhook/li2ef-output?request_id=${request_id}`;
 
-      // Notify the output webhook (fire-and-forget style, same as before)
       try {
         const outputRes = await fetch(
           'https://frontend.boomerangserver.co.in/webhook/Status_and_output_universal_flow',
@@ -445,7 +468,8 @@ try {
               batchFolderId,
               service_option_1 : serviceOption1,
               service_name     : serviceName,
-              request_source   : requestSource
+              request_source   : requestSource,
+              plan
             })
           }
         );
@@ -464,15 +488,16 @@ try {
 
       if (rowsPushed > 0) {
         totalRowsDelivered += rowsPushed;
-        const batchCost     = parseFloat((rowsPushed * 0.019).toFixed(4));
+        const batchCost     = parseFloat((rowsPushed * pricePerProfile).toFixed(4));
         totalCharged       += batchCost;
-        console.log(`  Batch ${batch_number} — Charging for ${rowsPushed} rows ($${batchCost}). Total charged: $${totalCharged.toFixed(4)}`);
+        console.log(`  Batch ${batch_number} — Charging for ${rowsPushed} rows ($${batchCost}) [${plan} plan]. Total charged: $${totalCharged.toFixed(4)}`);
         try {
           await Actor.charge({ eventName: serviceOption1, count: rowsPushed });
         } catch (chargeErr) {
           const remainingLeads = rowCount - totalRowsDelivered;
-          const remainingCost  = parseFloat((remainingLeads * 0.019).toFixed(4));
+          const remainingCost  = parseFloat((remainingLeads * pricePerProfile).toFixed(4));
           console.log(`\nInsufficient Apify credits — run stopped.`);
+          console.log(`Plan               : ${plan}`);
           console.log(`Profiles delivered : ${totalRowsDelivered}`);
           console.log(`Total charged      : $${totalCharged.toFixed(4)}`);
           console.log(`Remaining profiles : ${remainingLeads} (needs $${remainingCost} more)`);
@@ -513,6 +538,7 @@ try {
   console.log('ALL BATCHES COMPLETED!');
   console.log('====================================');
   console.log('Run ID            :', runId);
+  console.log('Plan              :', plan);
   console.log('Total Processed   :', allBatchResults.length);
   console.log('Completed         :', completedCount);
   console.log('Errors            :', errorCount);
@@ -552,6 +578,7 @@ try {
           service_name     : serviceName,
           service_option_1 : serviceOption1,
           request_source   : requestSource,
+          plan,
           total_charged    : parseFloat(totalCharged.toFixed(4)),
           total_rows       : totalRowsDelivered,
           completedBatches : completedCount,
